@@ -114,9 +114,7 @@ x ≡⟨ p ⟩≡ q = ≡trans p q
 -- expressing that |≡| is a congruence relation with respect to 
 -- applying any function.
 
--- * Preparation II: basic data types
-
--- ** Lists
+-- * Preparation II: basic data types: Lists and natural numbers
 
 infixr 10 _::_
 
@@ -124,13 +122,11 @@ data List (A : Set) : Set where
   []   : List A
   _::_ : A → List A → List A
 
--- and natural numbers
-
 data ℕ : Set where
   zero : ℕ
   suc  : ℕ → ℕ
 
--- with addition
+-- We'll need addition
 
 infixr 40 _+_
 
@@ -147,6 +143,35 @@ zero - m = zero
 suc n - zero = suc n
 suc n - suc m = n - m
 
+
+-- * 1. Elementary operations
+-- ** 1.1 List notation
+
+-- Bird introduces lists as "linearly ordered collections
+-- of values of the same general nature" ...
+--
+-- We above defined |List A| as an inductive datatype
+-- with the constructors |[]| and |_::_| (read "cons").
+-- Bird gives this representation later (p.23, using ":"
+-- instead of "::"). For now just think of
+-- a₁ :: a₂ :: ... aₙ :: []   as our notation for   
+-- [a₁,a₂,...,aₙ].
+--
+-- the empty list has a polymorphic type:
+
+aListOfAllTypes : {A : Set} → List A
+aListOfAllTypes = []
+
+-- note that we couldn't possibly have defined
+-- this differently!
+-- Speaking of polymorphism, Bird mentions the identity
+-- function:
+
+id : {A : Set} → A → A
+id x = x
+
+-- ** 1.2 Length
+
 -- First example of a polymorphic function defined by
 -- pattern matching and using recursion: the length of a list
 
@@ -154,32 +179,10 @@ suc n - suc m = n - m
 # []        = zero
 # (x :: xs) = suc (# xs)
 
--- Here is |*| ( pronounced and nowadays normally also
--- written |map|), the single most important polymorphic
--- function! Again we define it recursively using pattern
--- matching:
+-- to formulate and prove |# [m ... n] = n - m + 1| we have
+-- to define notation, see below...
 
-_* : {A B : Set} → (A → B) → List A → List B
-(f *) []        = []
-(f *) (x :: xs) = f x :: (f *) xs
-
--- Bird introduces the special notation [m..n] for
--- lists of integers. We can use |*| to
--- define it:
-
--- Agda likes neither ".." nor "…" (\ldots) in
--- the middle,of a mixfix operator, so we use "……" (twice \ldots)
-
-infix 20 [_……_]
-
-[_……_] : ℕ → ℕ → (List ℕ)
-[ zero …… zero ]       = zero :: []
-[ zero …… (suc n) ]    = zero :: (suc *) [ zero …… n ]
-[ (suc m) …… zero ]    = []
-[ (suc m) …… (suc n) ] = (suc *) [ m …… n ]
-
-
--- List concatenation
+-- ** 1.3 Concatenation
 
 infixr 20 _++_
 
@@ -187,9 +190,24 @@ _++_ : {A : Set} → List A → List A → List A
 []        ++ ys = ys
 (x :: xs) ++ ys = x :: xs ++ ys
 
+-- Bird gives the type of concatenation as
+-- | ++ : [α] × [α] → [α] |. We defined the
+-- "curried" variant...
 
+infixr 20 _×_
+infixr 20 _,_
 
--- Here's a very easy one: we defined the operation |++| so that
+data _×_ (A B : Set) : Set where
+  _,_ :  A → B → A × B
+
+curry : {A B C : Set} → ((A × B) → C) → A → B → C
+curry f x y = f (x , y)
+
+uncurry : {A B C : Set} → (A → B → C) → (A × B) → C
+uncurry g (x , y) = g x y
+
+-- And now the first proofs.
+-- Here's an easy one: we *defined* the operation |++| so that
 -- |[] ++ xs| is |xs| !  
 
 []leftid++ : {A : Set} → (xs : List A) → [] ++ xs ≡ xs
@@ -230,27 +248,156 @@ _++_ : {A : Set} → List A → List A → List A
 
 #maps++to+ : {A : Set} -> (xs ys : List A) → # (xs ++ ys) ≡ # xs + # ys
 #maps++to+ {A} [] ys = (# ([] ++ ys ))                            -- first the base case where xs is empty
-                       ≡⟨ ≡cong # ([]leftid++ ys) ⟩≡
+                         ≡⟨ ≡cong # ([]leftid++ ys) ⟩≡
                        (# ys)
-                       ≡⟨ refl ⟩≡                                 -- by the definition of add
+                         ≡⟨ refl ⟩≡                               -- by the definition of add
                        (zero + # ys)
-                       ≡⟨ refl ⟩≡                                 -- by definition of #
+                         ≡⟨ refl ⟩≡                               -- by definition of #
                        ((# {A} []) + # ys)
-                       QED
+                         QED
                        
 #maps++to+ (x :: xs) ys  = (# ((x :: xs) ++ ys))                  -- now the induction step
-                           ≡⟨ ≡cong #
+                             ≡⟨ ≡cong #
                               (refl {x = x :: xs ++ ys}) ⟩≡       -- def. ++ (unfortunately, agda doesn't find the  
                            (# (x :: xs ++ ys))                    --          implicit argument of refl by itself)
-                           ≡⟨ refl ⟩≡                             -- def. #
-                           (suc (# (xs ++ ys))
-                           ≡⟨ ≡cong suc (#maps++to+ xs ys) ⟩≡     -- use induction hypotheses
+                             ≡⟨ refl ⟩≡                           -- def. #
+                           (suc (# (xs ++ ys)))
+                             ≡⟨ ≡cong suc (#maps++to+ xs ys) ⟩≡   -- use induction hypotheses
                            (suc (# xs + # ys))
-                           ≡⟨ refl ⟩≡                             -- def. +
+                             ≡⟨ refl ⟩≡                           -- def. +
                            ((suc (# xs)) + # ys)
-                           ≡⟨ refl ⟩≡                             -- def. #
+                             ≡⟨ refl ⟩≡                           -- def. #
                            (((# (x :: xs)) + (# ys)))
-                           QED)
+                             QED
+
+
+
+-- ** 1.4 Map
+
+-- Here is |*| (pronounced and often also written |map|),
+-- a very important polymorphic function! Again we define
+-- it recursively by pattern matching:
+
+_*_ : {A B : Set} → (A → B) → List A → List B
+f * []        = []
+f * (x :: xs) = f x :: f * xs
+
+-- Bird introduces the special notation [m..n] for
+-- lists of integers. We can use |*| to define it:
+-- Agda likes neither ".." nor "…" (\ldots) in the middle
+-- of a mixfix operator, so we use "……" (twice \ldots)
+
+infix 20 [_……_]
+
+[_……_] : ℕ → ℕ → (List ℕ)
+[ zero …… zero ]       = zero :: []
+[ zero …… (suc n) ]    = zero :: suc * [ zero …… n ]
+[ (suc m) …… zero ]    = []
+[ (suc m) …… (suc n) ] = suc * [ m …… n ]
+
+
+-- Now we can give the proof of | # [m ... n] = n - m + 1 |.
+-- But we modify a little. Bird claims this formula to hold
+-- whenever |m ≤ n|. If we write the right hand side expression
+-- as | (suc n) - m | with our truncating |-|, we get
+
+-- runlength : (m n : ℕ) → (# [ m …… n ]) ≡ (suc n) - m
+
+-- Before giving the (somewhat lengthy) proof, we formulate
+-- a lemma that might be handy elsewhere: |(f *)| 
+
+mapPreservesLength : {A B : Set} → (f : A → B) → (as : List A) → # (f * as) ≡ # as
+mapPreservesLength f [] = refl
+mapPreservesLength f (a :: as) = (# (f * (a :: as)))
+                                   ≡⟨ refl ⟩≡                      -- def. * 
+                                 (# (f a :: f * as))
+                                   ≡⟨ refl ⟩≡                      -- def. #
+                                 (suc (# (f * as)))
+                                   ≡⟨ ≡cong suc (mapPreservesLength f as) ⟩≡  -- induction hypothesis
+                                 (suc (# as))
+                                   ≡⟨ refl ⟩≡
+                                 (# (a :: as))
+                                   QED
+
+runlength : (m n : ℕ) → (# [ m …… n ]) ≡ (suc n) - m
+runlength zero    zero    = (# [ zero …… zero ])
+                              ≡⟨ refl ⟩≡                          -- def. [ …… ]
+                            (# (zero :: []))
+                              ≡⟨ refl ⟩≡                          -- def. #
+                            (suc ( # {A = ℕ} []))                 -- the typechecker needs a hint here...
+                              ≡⟨ refl ⟩≡                          -- def. #
+                            (suc zero)
+                              ≡⟨ refl ⟩≡                          -- def. -
+                            ((suc zero) - zero)
+                              QED
+runlength zero    (suc n) = (# [ zero …… (suc n) ])
+                              ≡⟨ refl ⟩≡                          -- def. [ …… ], def. #
+                            (suc (# (suc * [ zero …… n ])))
+                              ≡⟨ ≡cong suc (mapPreservesLength suc [ zero …… n ]) ⟩≡  -- apply lemma maplength
+                            (suc (# [ zero …… n ]))
+                              ≡⟨ ≡cong suc (runlength zero n) ⟩≡  -- induction hypothesis
+                            (suc (suc n - zero))
+                              ≡⟨ refl ⟩≡                          -- def. - (twice)
+                            (suc (suc n)  - zero)
+                              QED
+runlength (suc m) zero = refl                                     -- both sides zero by the definitions
+runlength (suc m) (suc n) = (# [ (suc m) …… (suc n) ])
+                              ≡⟨ refl ⟩≡                          -- def. [ …… ]
+                            (# (suc * [ m …… n ]))
+                              ≡⟨ mapPreservesLength suc [ m …… n ] ⟩≡   -- the lemma again
+                            (# [ m …… n ])
+                              ≡⟨ runlength m n ⟩≡                 -- induction hypothesis
+                            (suc n - m)
+                              ≡⟨ refl ⟩≡                          -- def. -
+                            (suc (suc n) - suc m)
+                              QED
+
+-- map distributes over ++
+
+map++distribute : {A B : Set} → (f : A → B) → (as₁ as₂ : List A) →
+                                   f * (as₁ ++ as₂) ≡ (f * as₁) ++ (f * as₂)
+map++distribute f [] _ = refl
+map++distribute f (a :: as₁) as₂ = (f * ((a :: as₁) ++ as₂))
+                                     ≡⟨ refl ⟩≡                          -- def. ++, def. *
+                                   ((f a) :: f * (as₁ ++ as₂))
+                                     ≡⟨ ≡cong ((f a) ::_)               
+                                         (map++distribute f as₁ as₂) ⟩≡  -- induction hypothesis
+                                   ((f a) :: (f * as₁) ++ (f * as₂))
+                                     ≡⟨ refl ⟩≡                          -- def. ++, def. *
+                                   ((f * (a :: as₁)) ++ (f * as₂))
+                                     QED
+
+-- function composition
+
+infix 20 _·_
+
+_·_ : {A B C : Set} → (B → C) → (A → B) → (A → C)
+f · g = λ x → f (g x)
+
+-- map distributes backwards over function composition
+
+map·distribute : {A B C : Set} → (f : B → C) → (g : A → B) → (as : List A) →
+                                   (f · g) * as ≡ ((f *_) · (g *_)) as
+map·distribute f g [] = refl
+map·distribute f g (a :: as) = ((f · g) * (a :: as))
+                                 ≡⟨ refl ⟩≡                    -- def. ·, def. *
+                               (f (g a) :: ((f · g) * as))
+                                 ≡⟨ ≡cong (f (g a) ::_)
+                                   (map·distribute f g as) ⟩≡
+                               (f (g a) :: (((f *_) · (g *_)) as))
+                                 ≡⟨ refl ⟩≡
+                               (((f *_) · (g *_)) (a :: as))
+                                 QED
+
+-- discuss "inverse" of an injective function...
+-- use something like this?
+
+data Fiber {A B : Set} (f : A → B) : (b : B) → Set where
+   InFiber : {b : B} → (a : A) → ((f a) ≡ b) → Fiber f b
+
+
+
+-- rubbish below
 
 
 record BOU (A : Set) : Set where  -- binary operation with unit
@@ -288,11 +435,6 @@ op@(BO _⊕_ e) / (x :: xs) = x ⊕ (op / xs)
 
 
 
--- * 1 Elementary operations
--- ** 1.1 List notation
--- ** 1.2 Length
--- ** 1.3 Concatenation
--- ** 1.4 Map
 -- ** 1.5 Filter
 -- ** 1.6 Operator precedence
 -- * 2 Reduction
