@@ -299,12 +299,13 @@ infix 20 [_……_]
 -- Now we can give the proof of | # [m ... n] = n - m + 1 |.
 -- But we modify a little. Bird claims this formula to hold
 -- whenever |m ≤ n|. If we write the right hand side expression
--- as | (suc n) - m | with our truncating |-|, we get
+-- as | (suc n) - m | with our truncating |-|, we don't need
+-- the |m ≤ n|:
 
 -- runlength : (m n : ℕ) → (# [ m …… n ]) ≡ (suc n) - m
 
--- Before giving the (somewhat lengthy) proof, we formulate
--- a lemma that might be handy elsewhere: |(f *)| 
+-- Before giving the (somewhat lengthy ... sorry) proof, we
+-- formulate a lemma that might be handy elsewhere: 
 
 mapPreservesLength : {A B : Set} → (f : A → B) → (as : List A) → # (f * as) ≡ # as
 mapPreservesLength f [] = refl
@@ -392,8 +393,8 @@ map·distribute f g (a :: as) = ((f · g) * (a :: as))
 -- discuss "inverse" of an injective function...
 -- use something like this?
 
-data Fiber {A B : Set} (f : A → B) : (b : B) → Set where
-   InFiber : {b : B} → (a : A) → ((f a) ≡ b) → Fiber f b
+data FiberOver_of_ {A B : Set} : (b : B) → (f : A → B) → Set where
+   _of_↦_since_ : (f : A → B) → (a : A) → (b : B) → ((f a) ≡ b) → FiberOver b of f
 
 
 
