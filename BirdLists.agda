@@ -11,7 +11,7 @@ module BirdLists where
 -- (https://www.cs.ox.ac.uk/files/3378/PRG56.pdf).
 --
 -- The implementation is meant to accompany our reading of Bird's
--- text started on April 21st in the Potsdam Cartesian Seminar.
+-- text started on April 21st 2020 in the Potsdam Cartesian Seminar.
 --
 -- We'll try to stay as close as possible to Bird's concepts
 -- and notations. But while Bird defines many functions (first)
@@ -39,109 +39,11 @@ module BirdLists where
 -- We will not use any Agda libraries but do everything from
 -- scratch.
 
-
 -- * Preparation I: equality and equational reasoning
---
--- We want to prove the equations stated in Bird's paper,
--- so we first make some tools for this. We'll need the
--- "equality" (or "identity") type
+-- * Preparation II: basic data types - Lists and natural numbers
+--   see module Basics
 
-infix 5 _≡_
-
-data _≡_ {A : Set} (x : A) : A → Set where
-  refl : x ≡ x
-
--- For any |A : Set| and any |x y : A|, |x ≡ y| is a type.
--- | p : x ≡ y | stands for "p is a proof for | x ≡ y |. There
--- is just one constructor, |refl|, of type |x ≡ x|. One
--- would expect to be able to prove the following statements
--- were uip stands for "uniqueness of identity proofs":
-
-{-
-
-uip1 : {A : Set} → {x y : A} → ( p : x ≡ x) → p ≡ refl 
-uip1 refl = refl
-
-uip2 : {A : Set} → {x y : A} → ( p q : x ≡ y) → p ≡ q
-uip2 refl refl = refl
-
--}
-
--- Indeed if you disable the "without-K" option in the first line,
--- these would typecheck. But "without-K", these are no longer provable,
--- and thus the identities (and indentities of identities of
--- identities...) can have interesting structure.
-
--- While some forms of pattern matching are forbidden with the
--- without-K option, others are fine. We can show that |_≡_| is
--- an equivalence relation: the constructor |refl {A} {x}| itself
--- is a proof of reflexivity
-
-≡refl : {A : Set} → {x : A} → x ≡ x
-≡refl = refl
-
--- |_≡_| is also transitive:
-
-≡trans : {A : Set} → {x y z : A} → x ≡ y → y ≡ z → x ≡ z
-≡trans refl refl = refl
-
--- and symmetric:
-
-≡symm : {A : Set} → {x y : A} → x ≡ y → y ≡ x
-≡symm refl = refl
-
--- Using |refl| and |≡trans|, we can prove more complicated equations
--- by concatenating simple steps. The following functions are nothing
--- more than |refl| and |≡trans| with funny names and argument placements.
--- Moreover, of the three arguments of |_≡⟨_⟩≡_|, the first is actually
--- redundand - it can be inferred from the type of the second one!
--- All this may seem weird, but is done to make our stepwise equality
--- proofs look very similar to "equational reasoning" on paper, see below.
-
-_QED : {A : Set} -> (x : A) → x ≡ x
-x QED = refl
-
-infixr 10 _≡⟨_⟩≡_
-
-_≡⟨_⟩≡_ : {A : Set} (x : A) {y z : A} → x ≡ y → y ≡ z → x ≡ z
-x ≡⟨ p ⟩≡ q = ≡trans p q
-
--- We'll also often need
-
-≡cong : {A B : Set} {x y : A} (f : A → B) → x ≡ y → f x ≡ f y
-≡cong f refl = refl
-
--- expressing that |≡| is a congruence relation with respect to 
--- applying any function.
-
--- * Preparation II: basic data types: Lists and natural numbers
-
-infixr 10 _::_
-
-data List (A : Set) : Set where 
-  []   : List A
-  _::_ : A → List A → List A
-
-data ℕ : Set where
-  zero : ℕ
-  suc  : ℕ → ℕ
-
--- We'll need addition
-
-infixr 40 _+_
-
-_+_ : ℕ → ℕ → ℕ
-zero    + m = m
-(suc n) + m = suc (n + m)
-
--- and (truncated) subtraction
-
-infix 40 _-_
-
-_-_ : ℕ → ℕ → ℕ
-zero - m = zero
-suc n - zero = suc n
-suc n - suc m = n - m
+open import Basics
 
 
 -- * 1. Elementary operations
@@ -150,7 +52,7 @@ suc n - suc m = n - m
 -- Bird introduces lists as "linearly ordered collections
 -- of values of the same general nature" ...
 --
--- We above defined |List A| as an inductive datatype
+-- We (in Basics) defined |List A| as an inductive datatype
 -- with the constructors |[]| and |_::_| (read "cons").
 -- Bird gives this representation later (p.23, using ":"
 -- instead of "::"). For now just think of
@@ -210,8 +112,8 @@ uncurry g (x , y) = g x y
 -- Here's an easy one: we *defined* the operation |++| so that
 -- |[] ++ xs| is |xs| !  
 
-[]leftid++ : {A : Set} → (xs : List A) → [] ++ xs ≡ xs
-[]leftid++ xs = ([] ++ xs)
+[]++leftunit : {A : Set} → (xs : List A) → [] ++ xs ≡ xs
+[]++leftunit xs = ([] ++ xs)
                 ≡⟨ refl ⟩≡                                       -- this is just by definition of |++|
                 (xs)
                 QED
@@ -219,12 +121,12 @@ uncurry g (x , y) = g x y
 -- To show that |[]| is also a right identity for |++|, we have to
 -- use an inductive argument
 
-[]rightid++ : {A : Set} → (xs : List A) → xs ++ [] ≡ xs
-[]rightid++ [] = refl                                            -- [] ++ [] ≡ [] is again by definition
-[]rightid++ (x :: xs) = ((x :: xs) ++ [])
+[]++rightunit : {A : Set} → (xs : List A) → xs ++ [] ≡ xs
+[]++rightunit [] = refl                                            -- [] ++ [] ≡ [] is again by definition
+[]++rightunit (x :: xs) = ((x :: xs) ++ [])
                         ≡⟨ refl ⟩≡                               -- def. of ++, now for the :: pattern
                         (x :: (xs ++ []))
-                        ≡⟨ ≡cong (x ::_) ([]rightid++ xs) ⟩≡     -- We use ≡cong to apply the induction hypothesis
+                        ≡⟨ ≡cong (x ::_) ([]++rightunit xs) ⟩≡     -- We use ≡cong to apply the induction hypothesis
                         (x :: xs)                                -- | xs ++ [] ≡ xs | on the right of | x :: |,
                         QED                                      -- and are done.
                         
@@ -248,7 +150,7 @@ uncurry g (x , y) = g x y
 
 #maps++to+ : {A : Set} -> (xs ys : List A) → # (xs ++ ys) ≡ # xs + # ys
 #maps++to+ {A} [] ys = (# ([] ++ ys ))                            -- first the base case where xs is empty
-                         ≡⟨ ≡cong # ([]leftid++ ys) ⟩≡
+                         ≡⟨ ≡cong # ([]++leftunit ys) ⟩≡
                        (# ys)
                          ≡⟨ refl ⟩≡                               -- by the definition of add
                        (zero + # ys)
@@ -307,14 +209,14 @@ infix 20 [_……_]
 -- Before giving the (somewhat lengthy ... sorry) proof, we
 -- formulate a lemma that might be handy elsewhere: 
 
-mapPreservesLength : {A B : Set} → (f : A → B) → (as : List A) → # (f * as) ≡ # as
-mapPreservesLength f [] = refl
-mapPreservesLength f (a :: as) = (# (f * (a :: as)))
+*preserves# : {A B : Set} → (f : A → B) → (as : List A) → # (f * as) ≡ # as
+*preserves# f [] = refl
+*preserves# f (a :: as) = (# (f * (a :: as)))
                                    ≡⟨ refl ⟩≡                      -- def. * 
                                  (# (f a :: f * as))
                                    ≡⟨ refl ⟩≡                      -- def. #
                                  (suc (# (f * as)))
-                                   ≡⟨ ≡cong suc (mapPreservesLength f as) ⟩≡  -- induction hypothesis
+                                   ≡⟨ ≡cong suc (*preserves# f as) ⟩≡  -- induction hypothesis
                                  (suc (# as))
                                    ≡⟨ refl ⟩≡
                                  (# (a :: as))
@@ -334,7 +236,7 @@ runlength zero    zero    = (# [ zero …… zero ])
 runlength zero    (suc n) = (# [ zero …… (suc n) ])
                               ≡⟨ refl ⟩≡                          -- def. [ …… ], def. #
                             (suc (# (suc * [ zero …… n ])))
-                              ≡⟨ ≡cong suc (mapPreservesLength suc [ zero …… n ]) ⟩≡  -- apply lemma maplength
+                              ≡⟨ ≡cong suc (*preserves# suc [ zero …… n ]) ⟩≡  -- apply lemma maplength
                             (suc (# [ zero …… n ]))
                               ≡⟨ ≡cong suc (runlength zero n) ⟩≡  -- induction hypothesis
                             (suc (suc n - zero))
@@ -345,7 +247,7 @@ runlength (suc m) zero = refl                                     -- both sides 
 runlength (suc m) (suc n) = (# [ (suc m) …… (suc n) ])
                               ≡⟨ refl ⟩≡                          -- def. [ …… ]
                             (# (suc * [ m …… n ]))
-                              ≡⟨ mapPreservesLength suc [ m …… n ] ⟩≡   -- the lemma again
+                              ≡⟨ *preserves# suc [ m …… n ] ⟩≡   -- the lemma again
                             (# [ m …… n ])
                               ≡⟨ runlength m n ⟩≡                 -- induction hypothesis
                             (suc n - m)
@@ -370,24 +272,24 @@ map++distribute f (a :: as₁) as₂ = (f * ((a :: as₁) ++ as₂))
 
 -- function composition
 
-infix 20 _·_
+infix 20 _∘_ 
 
-_·_ : {A B C : Set} → (B → C) → (A → B) → (A → C)
-f · g = λ x → f (g x)
+_∘_ : {A B C : Set} → (B → C) → (A → B) → (A → C)
+f ∘ g = λ x → f (g x)
 
 -- map distributes backwards over function composition
 
-map·distribute : {A B C : Set} → (f : B → C) → (g : A → B) → (as : List A) →
-                                   (f · g) * as ≡ ((f *_) · (g *_)) as
-map·distribute f g [] = refl
-map·distribute f g (a :: as) = ((f · g) * (a :: as))
-                                 ≡⟨ refl ⟩≡                    -- def. ·, def. *
-                               (f (g a) :: ((f · g) * as))
+map∘distribute : {A B C : Set} → (f : B → C) → (g : A → B) → (as : List A) →
+                                   (f ∘ g) * as ≡ ((f *_) ∘ (g *_)) as
+map∘distribute f g [] = refl
+map∘distribute f g (a :: as) = ((f ∘ g) * (a :: as))
+                                 ≡⟨ refl ⟩≡                    -- def. ∘, def. *
+                               (f (g a) :: ((f ∘ g) * as))
                                  ≡⟨ ≡cong (f (g a) ::_)
-                                   (map·distribute f g as) ⟩≡
-                               (f (g a) :: (((f *_) · (g *_)) as))
+                                   (map∘distribute f g as) ⟩≡
+                               (f (g a) :: (((f *_) ∘ (g *_)) as))
                                  ≡⟨ refl ⟩≡
-                               (((f *_) · (g *_)) (a :: as))
+                               (((f *_) ∘ (g *_)) (a :: as))
                                  QED
 
 -- discuss "inverse" of an injective function...
@@ -398,7 +300,8 @@ data FiberOver_of_ {A B : Set} : (b : B) → (f : A → B) → Set where
 
 
 
--- rubbish below
+
+{- t.b.c.
 
 
 record BOU (A : Set) : Set where  -- binary operation with unit
@@ -432,7 +335,7 @@ op@(BO _⊕_ e) / (x :: xs) = x ⊕ (op / xs)
 -- (_o_) ' Nothing mb = Nothing
 -- (_o_) ' ma 
 
-
+-}
 
 
 
