@@ -84,14 +84,15 @@ step_to_wf< stip Q wfstep k = wfstep k pk where
       pstep n pn m m<sn | inr m≡n = ≡transport (≡symm m≡n ) (wfstep n pn)
 
 
--- Here we use the given "step induction principle" |stip| on a predicate |Q|
--- constructed from |P|. We use ex falso quodlibet to construct the function
--- | q0 : (m : ℕ) → m < zero → P m | : there is no |m| with |m < zero|, so if
--- we get one, we can construct anything, e.g. an element of |P m| - in Agda
--- we do this with the "absurd" pattern (). To construct |qstep|, i.e. deduce
--- |Q (suc n) = (m : ℕ) → m < (suc n) → P m| from |qn : Q n = ...|,  we make
--- a case distinction on |m|: if |m < n|, we recycle |qn|'s proof of |P m|,
+-- Here we use the given "step induction principle" |stip| on a predicate |P|
+-- constructed from |Q| : |P n| holds iff |Q m| holds for all |m < n|.
+-- We use ex falso quodlibet to construct |p0 : P zero|: It is a function
+-- | p0 : (m : ℕ) → m < zero → Q m | and there is no |m| with |m < zero|, so if
+-- we get one, we can construct anything, e.g. an element of |Q m| - in Agda
+-- we do this with the "absurd" pattern (). To construct |pstep|, i.e. deduce
+-- |P (suc n) = (m : ℕ) → m < (suc n) → Q m| from |pn : P n = ...|,  we make
+-- a case distinction on |m|: if |m < n|, we recycle |pn|'s proof of |Q m|,
 -- in the remaining case |m ≡ n|, we use |wfstep| (≡transport is needed to
--- convince the typechecker that in this case |P n| "is" |P m|). Finally,
--- after applying |stip| with the thus built arguments to obtain |Q k|, we
--- again use |wfstep| (renamed to |pfromq| for readability) to get |P k|.
+-- convince the typechecker that in this case |Q n| "is" |Q m|). Finally,
+-- after applying |stip| with the thus built arguments to obtain |pk : P k|,
+-- we again use |wfstep| to get |Q k|.
