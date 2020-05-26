@@ -67,21 +67,22 @@ step_to_wf< : ((P : ℕ → Set) →
                (P zero) →
                ((n : ℕ) → P n → P (suc n)) →
                (k : ℕ) → P k) →
-              ((Q : ℕ → Set) →
+               (Q : ℕ → Set) →
                ((n : ℕ) → ((m : ℕ) → m < n → Q m) → Q n) →
-               (k : ℕ) → Q k)
+               (k : ℕ) → Q k
 
-step_to_wf< stip P wfstep k = pfromq k (stip Q q0 qstep k) where
-    Q : ℕ → Set
-    Q n = (m : ℕ) → m < n → P m
-    q0 : Q zero
-    q0 _ ()     -- absurd
-    qstep : (n : ℕ) → Q n → Q (suc n)
-    qstep n qn m m<sn with (<→≤ m n m<sn)
-    qstep n qn m m<sn | inl m<n = qn m m<n
-    qstep n qn m m<sn | inr m≡n = ≡transport (≡symm m≡n ) (wfstep n qn)
-    pfromq : (n : ℕ) → Q n → P n
-    pfromq = wfstep
+step_to_wf< stip Q wfstep k = wfstep k pk where
+    pk : (m : ℕ) → m < k → Q m
+    pk = stip P p0 pstep k where
+      P : ℕ → Set
+      P n = (m : ℕ) → m < n → Q m      
+      p0 : P zero
+      p0 _ ()     -- absurd
+      pstep : (n : ℕ) → P n → P (suc n)
+      pstep n pn m m<sn with (<→≤ m n m<sn)
+      pstep n pn m m<sn | inl m<n = pn m m<n
+      pstep n pn m m<sn | inr m≡n = ≡transport (≡symm m≡n ) (wfstep n pn)
+
 
 -- Here we use the given "step induction principle" |stip| on a predicate |Q|
 -- constructed from |P|. We use ex falso quodlibet to construct the function
