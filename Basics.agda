@@ -387,5 +387,51 @@ data Bin : Set where
 
 -}
 
+-- Booleans:
+
+data 𝔹 : Set where
+  true : 𝔹
+  false : 𝔹
+
+infixl 15 _∧_
+infixl 15 _∨_
+
+_∧_ : 𝔹 → 𝔹 → 𝔹
+true ∧ true = true
+true ∧ false = false
+false ∧ _ = false
+
+_∨_ : 𝔹 → 𝔹 → 𝔹
+false ∨ false = false
+false ∨ true  = true
+true  ∨ _     = true 
+
+∧commutative : (x y : 𝔹) → x ∧ y ≡ y ∧ x
+∧commutative true  true  = refl
+∧commutative false true  = refl
+∧commutative true  false = refl
+∧commutative false false = refl
+
+if_then_else_ : {A : Set} → 𝔹 → A → A → A
+if true then a else _ = a
+if false then _ else a = a
+
+iffun : {A B : Set} → (g : A → B) → (c : 𝔹) → (t f : A) → g (if c then t else f) ≡ if c then g t else g f
+iffun g true t f = refl
+iffun g false t f = refl
+
+∧diag : (b : 𝔹) → b ∧ b ≡ b
+∧diag true  = refl
+∧diag false = refl
 
 
+
+-- lifting Booleans to type
+
+data YesOrNo (b : 𝔹) : Set where
+  Yes : b ≡ true  → YesOrNo b
+  No  : b ≡ false → YesOrNo b 
+
+yesOrNo : (b : 𝔹) → YesOrNo b
+yesOrNo true = Yes refl
+yesOrNo false = No refl

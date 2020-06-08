@@ -132,19 +132,19 @@ uncurry g (x , y) = g x y
                         
 -- Associativity of |++|
 
-++associative : {A : Set} → (xs ys zs : List A) → (xs ++ ys ++ zs) ≡ ((xs ++ ys) ++ zs)
+++associative : {A : Set} → (xs ys zs : List A) → (xs ++ ys) ++ zs ≡ xs ++ ys ++ zs
 ++associative []        ys zs = refl
-++associative (x :: xs) ys zs = ((x :: xs) ++ (ys ++ zs))
-                                ≡⟨ refl ⟩≡                       -- by definition of ++
-                                (x :: (xs ++ (ys ++ zs)))
-                                ≡⟨ (≡cong (x ::_)
-                                   (++associative xs ys zs)) ⟩≡  -- heart of the matter: use induction hypothesis
-                                (x :: ((xs ++ ys) ++ zs))
-                                ≡⟨ refl ⟩≡                       -- by def. ++ again
+++associative (x :: xs) ys zs = (((x :: xs) ++ ys) ++ zs)
+                                  ≡⟨ refl ⟩≡                       -- by definition of ++
                                 ((x :: (xs ++ ys)) ++ zs)
-                                ≡⟨ refl ⟩≡                       -- by def. ++ again
-                                (((x :: xs) ++ ys) ++ zs)
-                                QED
+                                  ≡⟨ refl ⟩≡                       -- by def. ++ again
+                                (x :: ((xs ++ ys) ++ zs))
+                                  ≡⟨ (≡cong (x ::_)
+                                   (++associative xs ys zs)) ⟩≡    -- heart of the matter: use induction hypothesis
+                                (x :: (xs ++ (ys ++ zs)))
+                                  ≡⟨ refl ⟩≡                       -- by def. of ++ again
+                                ((x :: xs) ++ (ys ++ zs))
+                                  QED
 
 -- The relationsship between |#|, |++|, and |+|
 
@@ -180,6 +180,8 @@ uncurry g (x , y) = g x y
 -- a very important polymorphic function! Again we define
 -- it recursively by pattern matching:
 
+infixr 18 _*_
+
 _*_ : {A B : Set} → (A → B) → List A → List B
 f * []        = []
 f * (x :: xs) = f x :: f * xs
@@ -202,12 +204,12 @@ infix 20 [_……_]
 -- But we modify a little. Bird claims this formula to hold
 -- whenever |m ≤ n|. If we write the right hand side expression
 -- as | (suc n) - m | with our truncating |-|, we don't need
--- the |m ≤ n|:
+-- the assumption |m ≤ n|:
 
 -- runlength : (m n : ℕ) → (# [ m …… n ]) ≡ (suc n) - m
 
 -- Before giving the (somewhat lengthy ... sorry) proof, we
--- formulate a lemma that might be handy elsewhere: 
+-- prove that map preserves length. That might also be handy elsewhere. 
 
 *preserves# : {A B : Set} → (f : A → B) → (as : List A) → # (f * as) ≡ # as
 *preserves# f [] = refl
@@ -272,7 +274,7 @@ map++distribute f (a :: as₁) as₂ = (f * ((a :: as₁) ++ as₂))
 
 -- function composition
 
-infix 20 _∘_ 
+infix 20 _∘_   -- \o  or  \circ  or  \comp  
 
 _∘_ : {A B C : Set} → (B → C) → (A → B) → (A → C)
 f ∘ g = λ x → f (g x)
@@ -292,16 +294,168 @@ map∘distribute f g (a :: as) = ((f ∘ g) * (a :: as))
                                (((f *_) ∘ (g *_)) (a :: as))
                                  QED
 
--- discuss "inverse" of an injective function...
--- use something like this?
 
-data FiberOver_of_ {A B : Set} : (b : B) → (f : A → B) → Set where
-   _of_↦_since_ : (f : A → B) → (a : A) → (b : B) → ((f a) ≡ b) → FiberOver b of f
+-- Bird writes (p 5): "... if f is an injective function with inverse f^{-1},
+-- then (f *)^{-1} = f^{-1} * ."  I think he means: if for f : A → B there
+-- exists invf : B → A such that ∀ a : A . invf (f a) ≡ a  ( f is usually called
+-- "split injective" in this case), then (f *) is also split injective, more
+-- precisely:   ∀ as : List A . invf * (f * as) ≡ as.
+
+mapinv : {A B : Set} → (f : A → B) → (invf : B → A) → ((a : A) → invf (f a) ≡ a) →
+         (as : List A) → invf * (f * as) ≡ as
+mapinv f invf splits [] = refl
+mapinv f invf splits (a :: as) = (invf * (f * (a :: as)))
+                                   ≡⟨ refl ⟩≡
+                                 (invf (f a) :: invf * (f * as))
+                                   ≡⟨ ≡cong ( _:: invf * (f * as)) (splits a) ⟩≡
+                                 (a :: invf * (f * as))
+                                   ≡⟨ ≡cong ( a ::_ ) (mapinv f invf splits as) ⟩≡
+                                 (a :: as)
+                                   QED
 
 
+-- ** 1.5 Filter
+
+infixr 20 _◃_    -- \tw or \triangleleft
+ 
+_◃_ : {A : Set} → (A → 𝔹) → List A → List A
+p ◃ [] = []
+p ◃ (a :: as) = if (p a) then a :: (p ◃ as) else (p ◃ as)
 
 
-{- t.b.c.
+filter++distribute : {A : Set} → (p : A → 𝔹) → (xs ys : List A) → p ◃ (xs ++ ys) ≡ (p ◃ xs) ++ (p ◃ ys)
+filter++distribute p [] ys = refl
+filter++distribute p (x :: xs) ys with p x
+filter++distribute p (x :: xs) ys | true  = ≡cong (x ::_) (filter++distribute p xs ys)
+filter++distribute p (x :: xs) ys | false = filter++distribute p xs ys
+
+-- commutativity of filter application
+-- we first prove a lemma:
+
+filterLemma : {A : Set} → (p q : A → 𝔹) → (x : A) → (xs : List A) →
+              p ◃ q ◃ (x :: xs) ≡ if (p x) ∧ (q x) then x :: p ◃ q ◃ xs else p ◃ q ◃ xs
+filterLemma p q x xs with q x
+filterLemma p q x xs | true with p x
+...                         | true  = refl
+...                         | false = refl
+filterLemma p q x xs | false with p x
+...                         | true  = refl
+...                         | false = refl
+
+
+filtercommutes : {A : Set} → (p q : A → 𝔹) → (xs : List A) →
+                 p ◃ q ◃ xs ≡ q ◃ p ◃ xs
+filtercommutes p q [] = refl
+filtercommutes p q (x :: xs) =
+    (p ◃ q ◃ (x :: xs))
+       ≡⟨ filterLemma p q x xs ⟩≡
+    (if p x ∧ q x then x :: p ◃ q ◃ xs else p ◃ q ◃ xs)
+       ≡⟨ ≡cong (if_then x :: p ◃ q ◃ xs else p ◃ q ◃ xs) (∧commutative (p x) (q x))⟩≡
+    (if q x ∧ p x then x :: p ◃ q ◃ xs else p ◃ q ◃ xs)
+       ≡⟨ ≡cong (λ y → if q x ∧ p x then (x :: y) else p ◃ q ◃ xs) (filtercommutes p q xs)⟩≡
+    (if q x ∧ p x then x :: q ◃ p ◃ xs else p ◃ q ◃ xs)
+       ≡⟨ ≡cong (λ y → if q x ∧ p x then (x :: q ◃ p ◃ xs) else y) (filtercommutes p q xs)⟩≡
+    (if q x ∧ p x then x :: q ◃ p ◃ xs else q ◃ p ◃ xs)
+       ≡⟨ ≡symm (filterLemma q p x xs) ⟩≡
+    (q ◃ p ◃ (x :: xs))
+       QED
+
+filterIdempotent : {A : Set} → (p : A → 𝔹) → (xs : List A) →
+                   p ◃ p ◃ xs ≡ p ◃ xs
+filterIdempotent p [] = refl
+filterIdempotent p (x :: xs) =
+    (p ◃ p ◃ (x :: xs))
+       ≡⟨ filterLemma p p x xs ⟩≡
+    (if (p x) ∧ (p x) then x :: p ◃ p ◃ xs else p ◃ p ◃ xs )
+       ≡⟨ ≡cong (if_then x :: p ◃ p ◃ xs else p ◃ p ◃ xs) (∧diag (p x)) ⟩≡
+    (if (p x) then x :: p ◃ p ◃ xs else p ◃ p ◃ xs )
+       ≡⟨ ≡cong (λ y → if p x then x :: y else p ◃ p ◃ xs) (filterIdempotent p xs) ⟩≡
+    (if (p x) then x :: p ◃ xs else p ◃ p ◃ xs )
+       ≡⟨ ≡cong (λ y → if p x then x :: p ◃ xs else y) (filterIdempotent p xs) ⟩≡
+    (if (p x) then x :: p ◃ xs else p ◃ xs )
+       ≡⟨ refl ⟩≡
+    (p ◃ (x :: xs))
+       QED
+
+filterMap : {A B : Set} → (f : A → B) → (p : B → 𝔹) → (xs : List A) →
+            p ◃ (f * xs) ≡ f * ((p ∘ f) ◃ xs)
+filterMap f p [] = refl
+filterMap f p (x :: xs) =
+    (p ◃ (f * (x :: xs)))
+      ≡⟨ refl ⟩≡
+    (if p (f x) then f x :: p ◃ (f * xs) else p ◃ (f * xs))
+      ≡⟨ ≡cong (λ y → if p (f x) then f x :: y else p ◃ (f * xs)) (filterMap f p xs) ⟩≡
+    (if p (f x) then f x :: f * ((p ∘ f) ◃ xs) else p ◃ (f * xs))
+      ≡⟨ ≡cong (λ y → if p (f x) then f x :: f * ((p ∘ f) ◃ xs) else y) (filterMap f p xs) ⟩≡
+    (if p (f x) then (f x :: f * ((p ∘ f) ◃ xs)) else (f * ((p ∘ f) ◃ xs)))
+      ≡⟨ ≡symm (iffun (f *_) (p (f x)) (x :: (p ∘ f) ◃ xs) ((p ∘ f) ◃ xs)) ⟩≡
+    (f * (if p (f x) then x :: (p ∘ f) ◃ xs  else (p ∘ f) ◃ xs))  
+      ≡⟨ refl ⟩≡
+    (f * ((p ∘ f) ◃ (x :: xs)))
+      QED
+
+-- Bird remarks (p. 5) that the three properties above can be
+-- written as equalities between functions, using function composition.
+-- Note, however, that these are not our ≡-equalities, but rather
+-- "pointwise" ≡-equalities of functions. The functions on both sides
+-- compute the same value for each argument, but are not the same
+-- as λ-terms! We therefore define "extensional equality":
+
+infix 5 _≡≡_
+
+_≡≡_ : {A B : Set} → (f g : A → B) → Set
+_≡≡_ {A} f g = (x : A) → f x ≡ g x
+
+-- Now the following are now just reformulations of the lemmata above:
+
+filtercommutes' : {A : Set} → (p q : A → 𝔹) →
+                  (p ◃_) ∘ (q ◃_) ≡≡ (q ◃_) ∘ (p ◃_)
+filtercommutes' = filtercommutes
+
+filterIdempotent' : {A : Set} → (p : A → 𝔹) →
+                    (p ◃_) ∘ (p ◃_) ≡≡ (p ◃_)
+filterIdempotent' = filterIdempotent
+
+filterMap' : {A B : Set} → (f : A → B) → (p : B → 𝔹) →
+             (p ◃_) ∘ (f *_) ≡≡  (f *_) ∘ ((p ∘ f) ◃_)
+filterMap' = filterMap
+
+-- ** 1.6 Operator precedence
+
+-- these should be ok:
+--   function application binds strongest
+--   ++ binds weaker than map
+-- anything else?
+
+
+-- * 2 Reduction
+-- ** 2.1 The reduction operators
+
+-- Bird defines reduction informally:
+--
+--  ⊕ / [a₁,a₂,...,aₙ] = a₁ ⊕ a₂ ⊕ ... ⊕ aₙ
+--
+-- and says that "... the form ⊕ / x is only permitted when
+-- ⊕ is an *associative* operator."
+--
+-- So we first define, for a binary operator ⊕ on a type A,
+-- the type isAssociative:
+
+
+isAssociative : {A : Set} → (_⊕_ : A → A → A) → Set
+isAssociative {A} _⊕_ = (a b c : A) → (a ⊕ b) ⊕ c ≡ a ⊕ (b ⊕ c)
+
+-- we already proved associativity of _++_ and of addition on ℕ 
+
+isAssociative++ : {A : Set} → isAssociative {List A} (_++_)
+isAssociative++ = ++associative
+
+isAssociative+ℕ : isAssociative _+_
+isAssociative+ℕ = +associative
+
+
+-- - ⊕ / [] has to be a (left and right) unit for ⊕ ! f the operator ⊕
+--   doesn't have a unit, ⊕ / [] is undefined
 
 
 record BOU (A : Set) : Set where  -- binary operation with unit
@@ -309,6 +463,8 @@ record BOU (A : Set) : Set where  -- binary operation with unit
   field
     _⊕_ : A → A → A
     e   : A
+
+{-
 
 infix 10 _/_
 
@@ -339,10 +495,6 @@ op@(BO _⊕_ e) / (x :: xs) = x ⊕ (op / xs)
 
 
 
--- ** 1.5 Filter
--- ** 1.6 Operator precedence
--- * 2 Reduction
--- ** 2.1 The reduction operators
 -- ** 2.2 Fictitious values
 -- ** 2.3 Homomorphisms
 -- ** 2.4 Definition by homomorphisms
